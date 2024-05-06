@@ -1,0 +1,53 @@
+Assuming you have a table AssetIDs with a single column AssetID in your database where you want to store the asset IDs from the Excel file:
+CREATE TABLE AssetIDs (
+    AssetID NVARCHAR(255)
+);
+
+Then, you can use the following T-SQL script to read the Excel file and insert the asset IDs into the AssetIDs table:
+
+-- Assuming you have the Excel data in a temporary table #ExcelData
+-- If not, you would need to read the Excel file into a temporary table or table variable
+-- INSERT INTO #ExcelData (AssetID) VALUES ('ASP-TAG-FOOTER.16'), ('other_asset_id'), ('another_asset_id')
+
+INSERT INTO AssetIDs (AssetID)
+SELECT AssetID
+FROM #ExcelData;
+
+Next, you can write a recursive query to retrieve hierarchical paths for each asset ID from the database:
+
+WITH RecursiveCTE AS (
+    SELECT 
+        i.CmsId,
+        i.Name AS AssetName,
+        i.CmsId AS Path,
+        n.ParentNodeId
+    FROM 
+        [CmsProd].[dbo].[Item] i
+    JOIN 
+        AssetIDs a ON i.CmsId = a.AssetID
+    WHERE 
+        i.CmsId = a.AssetID
+
+    UNION ALL
+
+    SELECT 
+        i.CmsId,
+        i.Name AS AssetName,
+        c.Path + ' > ' + i.Name,
+        n.ParentNodeId
+    FROM 
+        RecursiveCTE c
+    JOIN 
+        [CmsProd].[dbo].[Item] i ON c.ParentNodeId = i.NodeId
+    JOIN 
+        [CmsProd].[dbo].[Node] n ON i.NodeId = n.NodeId
+)
+SELECT 
+    CmsId AS AssetID,
+    Path AS HierarchicalPath
+FROM 
+    RecursiveCTE;
+
+This query will retrieve the hierarchical paths for each asset ID stored in the AssetIDs table.
+
+You can execute these queries in SSMS by copying and pasting them into a new query window or saving them as a script file and executing the script. Make sure to replace [CmsProd].[dbo].[Item], [CmsProd].[dbo].[Node], and other table names with your actual table names and adjust the queries as needed based on your database schema.
